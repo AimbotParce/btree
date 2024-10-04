@@ -101,7 +101,7 @@ def _makeIndexImage(index_text: str) -> Image.Image:
     )
     draw = ImageDraw.Draw(index_image)
     draw.text(
-        (1 + _index_horizontal_padding, 1 + _index_vertical_padding),
+        (1 + _index_horizontal_padding + w / 2, 1 + _index_vertical_padding + h / 2),
         index_text,
         font=_font,
         anchor="mm",

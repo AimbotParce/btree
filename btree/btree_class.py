@@ -87,7 +87,7 @@ class BTree(Generic[T]):
             raise ValueError("load must be between 0 and 1")
 
         sorted_list = sorted(indexed_list, key=lambda x: x[0])
-        data_per_bucket = math.floor(2 * order * load)
+        max_data_per_bucket = math.floor(2 * order * load)
 
         leaves: list[BTreeLeaf] = []
 
@@ -96,7 +96,7 @@ class BTree(Generic[T]):
         for index, value in sorted_list:
             current_index_bucket.append(index)
             current_value_bucket.append(value)
-            if len(current_index_bucket) >= data_per_bucket:
+            if len(current_index_bucket) >= max_data_per_bucket:
                 prev = leaves[-1] if leaves else None
                 leaf = BTreeLeaf(
                     indexes=current_index_bucket, values=current_value_bucket, prev_leaf=prev, capacity=2 * order
@@ -109,9 +109,17 @@ class BTree(Generic[T]):
 
         to_join = leaves
         min_indices: dict[BTreeLeaf | BTreeNode, float] = {id(l): l.indexes[0] for l in leaves}
+        iteration = 0
         while len(to_join) > 1:
             new_nodes = []
-            for children in mit.batched(to_join, n=data_per_bucket + 1, strict=False):
+            edge_count = math.ceil(len(to_join) / (max_data_per_bucket + 1))
+            children_count = math.ceil(len(to_join) / edge_count)
+            if iteration % 2 == 0:  # Its too late, I slept 4.5h last night and I cannot think of a better way
+                # of avoiding having a side too heavy.
+                to_join = reversed(to_join)
+            for children in mit.batched(to_join, n=children_count, strict=False):
+                if iteration % 2 == 0:
+                    children = list(reversed(children))
                 if len(children) == 1:
                     new_nodes.append(children[0])
                 else:
@@ -124,6 +132,11 @@ class BTree(Generic[T]):
                     node = BTreeNode(children=children, indexes=indexes, capacity=2 * order)
                     min_indices[id(node)] = min_children_node_index
                     new_nodes.append(node)
+
+            if iteration % 2 == 0:
+                new_nodes = list(reversed(new_nodes))
             to_join = new_nodes
+
+            iteration += 1
 
         return cls(root=to_join[0], order=order, load=load)
