@@ -108,14 +108,22 @@ class BTree(Generic[T]):
                 current_value_bucket = []
 
         to_join = leaves
+        min_indices: dict[BTreeLeaf | BTreeNode, float] = {id(l): l.indexes[0] for l in leaves}
         while len(to_join) > 1:
             new_nodes = []
             for children in mit.batched(to_join, n=data_per_bucket + 1, strict=False):
                 if len(children) == 1:
                     new_nodes.append(children[0])
                 else:
-                    indexes = list(c.indexes[0] for c in children)[1:]
-                    new_nodes.append(BTreeNode(children=children, indexes=indexes, capacity=2 * order))
+                    indexes = []
+                    for j, c in enumerate(children):
+                        if j == 0:
+                            min_children_node_index = min_indices[id(c)]
+                        else:
+                            indexes.append(min_indices[id(c)])
+                    node = BTreeNode(children=children, indexes=indexes, capacity=2 * order)
+                    min_indices[id(node)] = min_children_node_index
+                    new_nodes.append(node)
             to_join = new_nodes
 
         return cls(root=to_join[0], order=order, load=load)
